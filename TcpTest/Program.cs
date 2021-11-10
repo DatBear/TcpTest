@@ -87,7 +87,6 @@ namespace TcpTest
                     }
                     else
                     {
-                        Debug.WriteLine($"{res.Index} {_stopwatch.ElapsedMilliseconds}ms");
                         if ((res.Index+1) % 100 == 0)
                         {
                             Debug.WriteLine($"100th {res.Index+1} = {_hundredStopwatch.ElapsedMilliseconds}ms");
