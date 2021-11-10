@@ -114,12 +114,14 @@ namespace TcpTest
         {
             var stream = client.GetStream();
             var buffer = new List<byte>();
-            var byteBuffer = new byte[4 * 1024];
+            var byteBuffer = new byte[32 * 1024];
+            var spanBuffer = new Span<byte>(byteBuffer);
+            
             while (client.Connected)
             {
                 if (stream.DataAvailable)
                 {
-                    var bytesRead = stream.Read(byteBuffer, 0, byteBuffer.Length);
+                    var bytesRead = stream.Read(spanBuffer);
                     buffer.AddRange(byteBuffer[..bytesRead]);
                 }
                 if (!client.Connected) return;
@@ -130,8 +132,8 @@ namespace TcpTest
                     var remainingSize = originalPacketSize - buffer.Count;
                     if (remainingSize > 0)
                     {
-                        byteBuffer = new byte[remainingSize];
-                        var bytesRead = stream.Read(byteBuffer, 0, byteBuffer.Length);
+                        spanBuffer = new Span<byte>(byteBuffer, 0, Math.Min(remainingSize, byteBuffer.Length));
+                        var bytesRead = stream.Read(spanBuffer);
                         buffer.AddRange(byteBuffer[..bytesRead]);
                     }
                     else
