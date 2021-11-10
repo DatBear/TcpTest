@@ -5,13 +5,24 @@ namespace TcpTest
 {
     public class ResponsePacket
     {
+        private static readonly Random R = new();
+        private static readonly byte[] RandomBytes;
+        static ResponsePacket()
+        {
+            RandomBytes = new byte[1048576];
+            R.NextBytes(RandomBytes);
+        }
+
+
         public int Length => 9 + Data.Length;
         public byte Type => 1;
         public int Index { get; }
         public int Begin { get; }
         public byte[] Data { get; }
 
-        public ResponsePacket(int index, int begin, byte[] data)
+        
+
+    public ResponsePacket(int index, int begin, byte[] data)
         {
             Index = index;
             Begin = begin;
@@ -37,11 +48,10 @@ namespace TcpTest
             return bytes.ToArray();
         }
 
-        private static Random r = new();
         public static ResponsePacket CreateRandom(RequestPacket req)
         {
-            byte[] data = new byte[req.RequestedLength];
-            r.NextBytes(data);
+            var dataStart = R.Next(0, 1048576-req.RequestedLength-1);
+            byte[] data = RandomBytes[dataStart..(dataStart + req.RequestedLength)];
             return new ResponsePacket(req.Index, req.Begin, data);
         }
 
