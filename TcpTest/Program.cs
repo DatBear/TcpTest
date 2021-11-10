@@ -114,10 +114,9 @@ namespace TcpTest
         {
             var stream = client.GetStream();
             var buffer = new List<byte>();
-            
+            var byteBuffer = new byte[4 * 1024];
             while (client.Connected)
             {
-                var byteBuffer = new byte[1 * 1024];
                 if (stream.DataAvailable)
                 {
                     var bytesRead = stream.Read(byteBuffer, 0, byteBuffer.Length);
