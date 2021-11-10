@@ -120,8 +120,8 @@ namespace TcpTest
                 if (stream.DataAvailable)
                 {
                     var bytesRead = stream.Read(byteBuffer, 0, byteBuffer.Length);
-                    buffer.AddRange(byteBuffer.Take(bytesRead));
-                } 
+                    buffer.AddRange(byteBuffer[..bytesRead]);
+                }
                 if (!client.Connected) return;
                 
                 while (stream.DataAvailable && buffer.Count >= 4)
@@ -132,7 +132,7 @@ namespace TcpTest
                     {
                         byteBuffer = new byte[remainingSize];
                         var bytesRead = stream.Read(byteBuffer, 0, byteBuffer.Length);
-                        buffer.AddRange(byteBuffer.Take(bytesRead));
+                        buffer.AddRange(byteBuffer[..bytesRead]);
                     }
                     else
                     {
