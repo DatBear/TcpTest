@@ -13,6 +13,13 @@ namespace TcpTest
     {
         static void Main(string[] args)
         {
+            var buffer = new RingBuffer(15);
+            for (var i = 0; i < 20; i++)
+            {
+                buffer.Add(i);
+            }
+
+
             Task.Run(new Program().Server);
             Task.Run(new Program().Client);
             Console.Read();
@@ -31,8 +38,11 @@ namespace TcpTest
             var listener = new TcpListener(new IPEndPoint(IPAddress.Loopback, _serverPort));
             listener.Start();
             var tcpClient = listener.AcceptTcpClient();
+            var serverUploadBandwidthMonitor = new BandwidthMonitor();
+            serverUploadBandwidthMonitor.Start();
             Task.Run(() => ReadThread(tcpClient, Server_HandlePacket));
-            Task.Run(() => WriteThread(tcpClient, _serverTxPackets, _serverTxPacketsReady));
+            Task.Run(() => WriteThread(tcpClient, _serverTxPackets, _serverTxPacketsReady, serverUploadBandwidthMonitor));
+            Task.Run(() => OutputBandwidthThread("Upload speed: ", serverUploadBandwidthMonitor));
             while (true)
                 Thread.Sleep(100);
         }
@@ -65,8 +75,11 @@ namespace TcpTest
         {
             var tcpClient = new TcpClient(new IPEndPoint(IPAddress.Loopback, _clientPort));
             tcpClient.Connect(new IPEndPoint(IPAddress.Loopback, _serverPort));
-            Task.Run(() => ReadThread(tcpClient, Client_HandlePacket));
+            var clientDownloadBandwidthMonitor = new BandwidthMonitor();
+            clientDownloadBandwidthMonitor.Start();
+            Task.Run(() => ReadThread(tcpClient, Client_HandlePacket, clientDownloadBandwidthMonitor));
             Task.Run(() => WriteThread(tcpClient, _clientTxPackets, _clientTxPacketsReady));
+            Task.Run(() => OutputBandwidthThread("Download speed: ", clientDownloadBandwidthMonitor));
             _stopwatch.Start();
             _hundredStopwatch.Start();
             Write(new RequestPacket(0, 0, RequestPacket.DefaultRequestLength));
@@ -109,7 +122,8 @@ namespace TcpTest
         #endregion
 
         #region Common
-        private void ReadThread(TcpClient client, Action<List<byte>> handleAction)
+        private long _clientTotalUploadedBytes = 0;
+        private void ReadThread(TcpClient client, Action<List<byte>> handleAction, BandwidthMonitor monitor = null)
         {
             var stream = client.GetStream();
             var buffer = new List<byte>();
@@ -121,6 +135,7 @@ namespace TcpTest
                 if (stream.DataAvailable)
                 {
                     var bytesRead = stream.Read(spanBuffer);
+                    monitor?.AddBytes(bytesRead);
                     buffer.AddRange(byteBuffer[..bytesRead]);
                 }
                 if (!client.Connected) return;
@@ -133,6 +148,7 @@ namespace TcpTest
                     {
                         spanBuffer = new Span<byte>(byteBuffer, 0, Math.Min(remainingSize, byteBuffer.Length));
                         var bytesRead = stream.Read(spanBuffer);
+                        monitor?.AddBytes(bytesRead);
                         buffer.AddRange(byteBuffer[..bytesRead]);
                     }
                     else
@@ -151,7 +167,7 @@ namespace TcpTest
                     {
                         break;
                     }
-
+                    
                     List<byte> packet = new List<byte>(buffer.GetRange(0, packetLength + 4));
                     buffer.RemoveRange(0, packet.Count);
                     Task.Run(() => handleAction.Invoke(packet));
@@ -159,7 +175,7 @@ namespace TcpTest
             }
         }
 
-        private void WriteThread(TcpClient client, Queue<byte[]> queue, AutoResetEvent readyEvent)
+        private void WriteThread(TcpClient client, Queue<byte[]> queue, AutoResetEvent readyEvent, BandwidthMonitor monitor = null)
         {
             while (true)
             {
@@ -169,9 +185,19 @@ namespace TcpTest
                     byte[] packet;
                     lock (queue)
                         packet = queue.Dequeue();
+                    monitor?.AddBytes(packet.Length);
                     client.GetStream().Write(packet);
                     client.GetStream().Flush();
                 }
+            }
+        }
+
+        private void OutputBandwidthThread(string name, BandwidthMonitor monitor)
+        {
+            while (true)
+            {
+                Debug.WriteLine($"{name} {monitor.GetAverageSpeed()}");
+                Thread.Sleep(15000);
             }
         }
         #endregion
