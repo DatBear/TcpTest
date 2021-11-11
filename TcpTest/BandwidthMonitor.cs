@@ -6,7 +6,7 @@ namespace TcpTest
 {
     public class BandwidthMonitor
     {
-        public long Bytes;
+        private long _bytes;
         
         private readonly RingBuffer _ringBuffer = new(15);
         private readonly Timer _timer;
@@ -18,13 +18,13 @@ namespace TcpTest
 
         private void Timer_ResetBytesRead(object? state)
         {
-            _ringBuffer.Add(Bytes);
-            Bytes = 0;
+            _ringBuffer.Add(_bytes);
+            _bytes = 0;
         }
         
         public void Start()
         {
-            Bytes = 0;
+            _bytes = 0;
             _timer.Change(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         }
 
@@ -41,7 +41,7 @@ namespace TcpTest
 
         public void AddBytes(int bytes)
         {
-            Bytes += bytes;
+            _bytes += bytes;
         }
     }
 }
