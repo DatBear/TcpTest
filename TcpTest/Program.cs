@@ -61,7 +61,7 @@ namespace TcpTest
 
         private void Write(ResponsePacket res)
         {
-            lock(_serverTxPacketsReady)
+            lock(_serverTxPackets)
                 _serverTxPackets.Enqueue(res.GetBytes());
             _serverTxPacketsReady.Set();
         }
